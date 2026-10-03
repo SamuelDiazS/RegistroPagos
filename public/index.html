@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3a34">
+<title>Control de pagos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f3f1ea;
+    --card: #fffefb;
+    --ink: #1c2b27;
+    --muted: #6b7a74;
+    --line: #dcd8cb;
+    --brand: #1f3a34;
+    --yes: #1f8a4c;
+    --yes-bg: #dff3e6;
+    --no: #c43d2f;
+    --no-bg: #f9e0dc;
+    --focus: #2b6fd6;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: 'Figtree', system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  header {
+    background: var(--brand);
+    color: #fff;
+    padding: calc(18px + env(safe-area-inset-top)) 16px 16px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 {
+    font-family: 'Bricolage Grotesque', 'Figtree', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    letter-spacing: -0.02em;
+  }
+  .stats { display: flex; gap: 8px; margin-top: 14px; }
+  .stat {
+    flex: 1; background: rgba(255,255,255,.1); border-radius: 10px;
+    padding: 8px 10px; min-width: 0;
+  }
+  .stat b { font-family: 'Bricolage Grotesque', sans-serif; font-size: 1.5rem; display: block; line-height: 1.1; }
+  .stat span { font-size: .78rem; opacity: .8; }
+  .bar { height: 6px; background: rgba(255,255,255,.18); border-radius: 3px; margin-top: 12px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: #6fd69a; transition: width .3s; }
+
+  .tools {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--paper);
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .tools .wrap { display: grid; gap: 10px; }
+  input[type=search] {
+    width: 100%; font: inherit; font-size: 16px; /* 16px evita zoom en iOS */
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--card); color: var(--ink);
+  }
+  .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    font: inherit; font-size: .88rem; font-weight: 500; white-space: nowrap;
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line);
+    background: transparent; color: var(--ink); cursor: pointer; min-height: 38px;
+  }
+  .chip[aria-pressed=true] { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+  main { padding: 12px 16px 40px; }
+  ul { list-style: none; padding: 0; display: grid; gap: 8px; }
+  li {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--card); border: 1px solid var(--line); border-left-width: 5px;
+    border-radius: 12px; padding: 8px 8px 8px 12px;
+    transition: border-color .15s, background .15s;
+  }
+  li.paid { border-left-color: var(--yes); }
+  li.unpaid { border-left-color: var(--no); }
+  .num { width: 1.6rem; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; flex: none; }
+  .name { flex: 1; min-width: 0; font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; }
+  .btns { display: flex; gap: 6px; flex: none; }
+  .btn {
+    width: 48px; height: 48px; border-radius: 12px; border: 2px solid var(--line);
+    background: transparent; color: var(--muted); cursor: pointer;
+    display: grid; place-items: center; touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .08s, background .15s, border-color .15s, color .15s;
+  }
+  .btn:active { transform: scale(.92); }
+  .btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .btn.yes:hover { border-color: var(--yes); color: var(--yes); }
+  .btn.no:hover { border-color: var(--no); color: var(--no); }
+  .btn.yes[aria-pressed=true] { background: var(--yes); border-color: var(--yes); color: #fff; }
+  .btn.no[aria-pressed=true] { background: var(--no); border-color: var(--no); color: #fff; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  .msg { text-align: center; color: var(--muted); padding: 40px 10px; }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom));
+    transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+    background: var(--no); color: #fff; padding: 12px 18px; border-radius: 10px;
+    font-weight: 500; max-width: calc(100% - 32px); transition: .25s;
+  }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; }
+
+  @media (max-width: 380px) {
+    .btn { width: 44px; height: 44px; }
+    .num { display: none; }
+  }
+  @media (min-width: 720px) {
+    li { padding: 10px 12px 10px 16px; gap: 14px; }
+    .num { width: 2rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Control de pagos</h1>
+    <div class="stats" aria-live="polite">
+      <div class="stat"><b id="sPaid">0</b><span>Pagaron</span></div>
+      <div class="stat"><b id="sUnpaid">0</b><span>No han pagado</span></div>
+      <div class="stat"><b id="sNone">0</b><span>Sin marcar</span></div>
+    </div>
+    <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+  </div>
+</header>
+
+<div class="tools">
+  <div class="wrap">
+    <input type="search" id="q" placeholder="Buscar estudiante" aria-label="Buscar estudiante" autocomplete="off">
+    <div class="chips" id="chips">
+      <button class="chip" data-f="all" aria-pressed="true">Todos</button>
+      <button class="chip" data-f="paid" aria-pressed="false">Pagaron</button>
+      <button class="chip" data-f="unpaid" aria-pressed="false">No han pagado</button>
+      <button class="chip" data-f="none" aria-pressed="false">Sin marcar</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="wrap">
+    <ul id="list"></ul>
+    <p class="msg" id="msg">Cargando lista…</p>
+  </div>
+</main>
+<div class="toast" id="toast" role="alert"></div>
+
+<script>
+(() => {
+  const CHECK = '<svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg>';
+  const CROSS = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  const $ = (id) => document.getElementById(id);
+  let students = [];
+  let filter = 'all';
+  let query = '';
+
+  const norm = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const state = (p) => (p === true ? 'paid' : p === false ? 'unpaid' : 'none');
+
+  function toast(text) {
+    const t = $('toast');
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(toast.t);
+    toast.t = setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  function updateStats() {
+    const paid = students.filter(s => s.pagado === true).length;
+    const unpaid = students.filter(s => s.pagado === false).length;
+    $('sPaid').textContent = paid;
+    $('sUnpaid').textContent = unpaid;
+    $('sNone').textContent = students.length - paid - unpaid;
+    $('bar').style.width = students.length ? (paid / students.length * 100) + '%' : '0';
+  }
+
+  function render() {
+    const q = norm(query.trim());
+    const items = students.filter(s =>
+      (filter === 'all' || state(s.pagado) === filter) && (!q || norm(s.nombre).includes(q))
+    );
+    $('list').innerHTML = items.map(s => `
+      <li class="${state(s.pagado)}" data-id="${s.id}">
+        <span class="num">${s.id}</span>
+        <span class="name">${s.nombre}</span>
+        <span class="btns">
+          <button class="btn yes" data-v="true" aria-pressed="${s.pagado === true}" aria-label="Marcar que ${s.nombre} ya pagó">${CHECK}</button>
+          <button class="btn no" data-v="false" aria-pressed="${s.pagado === false}" aria-label="Marcar que ${s.nombre} no ha pagado">${CROSS}</button>
+        </span>
+      </li>`).join('');
+    $('msg').textContent = items.length ? '' : (students.length ? 'Ningún estudiante coincide.' : '');
+    $('msg').hidden = items.length > 0;
+    updateStats();
+  }
+
+  async function setPaid(id, value) {
+    const s = students.find(x => x.id === id);
+    const prev = s.pagado;
+    s.pagado = value;           // actualización inmediata
+    render();
+    try {
+      const r = await fetch('/api/students', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, pagado: value })
+      });
+      if (!r.ok) throw new Error();
+    } catch {
+      s.pagado = prev;          // revertir si falla
+      render();
+      toast('No se pudo guardar. Revisa tu conexión.');
+    }
+  }
+
+  $('list').addEventListener('click', (e) => {
+    const b = e.target.closest('.btn');
+    if (!b) return;
+    const id = Number(b.closest('li').dataset.id);
+    const v = b.dataset.v === 'true';
+    const cur = students.find(x => x.id === id).pagado;
+    setPaid(id, cur === v ? null : v);   // tocar de nuevo quita la marca
+  });
+
+  $('q').addEventListener('input', (e) => { query = e.target.value; render(); });
+  $('chips').addEventListener('click', (e) => {
+    const c = e.target.closest('.chip');
+    if (!c) return;
+    filter = c.dataset.f;
+    document.querySelectorAll('.chip').forEach(x => x.setAttribute('aria-pressed', x === c));
+    render();
+  });
+
+  async function load() {
+    try {
+      const r = await fetch('/api/students');
+      if (!r.ok) throw new Error();
+      students = await r.json();
+      render();
+    } catch {
+      $('msg').textContent = 'No se pudo cargar la lista. Verifica la conexión a la base de datos.';
+    }
+  }
+  load();
+})();
+</script>
+</body>
+</html>
